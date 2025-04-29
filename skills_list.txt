@@ -1,0 +1,21 @@
+Python
+Machine Learning
+Data Science
+SQL
+Cloud Computing
+Cybersecurity
+Data Analysis
+Deep Learning
+Artificial Intelligence
+Project Management
+Networking
+Database Management
+Customer Support
+Business Analysis
+AWS
+Azure
+Docker
+Kubernetes
+HTML
+CSS
+JavaScript
