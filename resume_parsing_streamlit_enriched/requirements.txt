@@ -1,7 +1,6 @@
 streamlit
 pandas
-numpy
+fitz
 pdf2image
 pytesseract
-pymupdf
 openpyxl
