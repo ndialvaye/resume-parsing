@@ -1,6 +1,6 @@
 streamlit
 pandas
-fitz
-pdf2image
+pymupdf
 pytesseract
+pdf2image
 openpyxl
