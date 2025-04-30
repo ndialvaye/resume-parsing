@@ -1,6 +1,0 @@
-streamlit
-pandas
-fitz
-pdf2image
-pytesseract
-openpyxl

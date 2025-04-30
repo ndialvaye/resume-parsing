@@ -1,22 +1,19 @@
 
 import streamlit as st
 import pandas as pd
-import fitz  # PyMuPDF
+import fitz
 import pytesseract
 from pdf2image import convert_from_bytes
-from io import BytesIO
-import spacy
 import re
 from difflib import get_close_matches
-
-# Utilise un modèle vide de spaCy compatible avec Streamlit Cloud
-nlp = spacy.blank("en")
+from io import BytesIO
 
 skills_list = [
-    "Python", "Machine Learning", "SQL", "Excel", "Access", "MySQL",
-    "Genetec", "Axis", "Morpho", "Geosatis", "Cloud Computing",
-    "Security Systems", "Data Analysis", "Artificial Intelligence",
-    "Networking", "PowerPoint", "Word"
+    "Python", "Java", "JavaScript", "SQL", "HTML", "CSS", "C++", "C#", "PHP", "React",
+    "Angular", "Node.js", "Excel", "Word", "PowerPoint", "MySQL", "MongoDB", "Django", "Flask",
+    "Git", "Linux", "Docker", "Kubernetes", "Photoshop", "Illustrator", "Machine Learning",
+    "Deep Learning", "Data Analysis", "TensorFlow", "Pandas", "NumPy", "OpenCV", "NLP",
+    "REST API", "CI/CD", "Genetec", "Axis", "Morpho", "Geosatis", "VMS", "Access Control", "Cybersecurity"
 ]
 
 def extract_text_from_pdf(file):
@@ -31,93 +28,97 @@ def extract_text_from_pdf(file):
             text += pytesseract.image_to_string(img)
     return text.strip()
 
-def extract_entities(text):
-    doc = nlp(text)
-
-    entities = {
+def extract_data(text):
+    data = {
         "Name": "",
-        "Address": "",
-        "Phone": "",
         "Email": "",
-        "Driving License": "",
+        "Phone": "",
+        "Address": "",
         "Profile": "",
         "Skills": "",
         "Experience": "",
         "Education": "",
         "Languages": "",
-        "Certifications": ""
+        "Driving License": ""
     }
 
+    # Email
     emails = re.findall(r'[\w\.-]+@[\w\.-]+\.\w+', text)
     if emails:
-        entities["Email"] = emails[0]
+        data["Email"] = emails[0].lower()
 
+    # Phone
     phones = re.findall(r'(\+?\d[\d\s\-\(\)]{7,})', text)
     if phones:
-        entities["Phone"] = phones[0].replace(" ", "").replace("-", "")
+        data["Phone"] = re.sub(r"[^\d+]", "", phones[0])
 
-    for ent in doc.ents:
-        if ent.label_ == "PERSON" and 1 <= len(ent.text.split()) <= 4:
-            entities["Name"] = ent.text.strip()
-            break
+    # Name
+    lines = text.split("\n")
+    if lines:
+        first_line = lines[0].strip()
+        if len(first_line.split()) <= 4:
+            data["Name"] = first_line.title()
 
-    if "permis" in text.lower():
-        permis_match = re.search(r'permis\s+([A-Za-z]{1})', text, re.IGNORECASE)
-        if permis_match:
-            entities["Driving License"] = f"Permis {permis_match.group(1).upper()}"
-
-    address_match = re.search(r'(adresse|address)[\:\- ]*(.*?)(\n|$)', text, re.IGNORECASE)
+    # Address
+    address_match = re.search(r"(adresse|address)\s*[:\-]*\s*(.+)", text, re.IGNORECASE)
     if address_match:
-        entities["Address"] = address_match.group(2).strip()
+        data["Address"] = address_match.group(2).split("\n")[0].strip().title()
 
-    profile_match = re.search(r'(profil|objectif|profile)[\:\- ]*(.*?)(experience|skills|formation|education|competences)', text, re.IGNORECASE|re.DOTALL)
+    # Profile
+    profile_match = re.search(r"(profil|objectif)\s*[:\-]*\s*(.+?)(\n|experience|formation|education|skills)", text, re.IGNORECASE | re.DOTALL)
     if profile_match:
-        entities["Profile"] = profile_match.group(2).strip()
+        data["Profile"] = profile_match.group(2).strip()
 
-    found_skills = set()
-    for word in text.split():
-        close = get_close_matches(word, skills_list, n=1, cutoff=0.8)
-        if close:
-            found_skills.add(close[0])
-    entities["Skills"] = ", ".join(sorted(found_skills))
+    # Education
+    edu_match = re.search(r"(formation|education)\s*[:\-]*\s*(.+?)(experience|skills|competences|languages)", text, re.IGNORECASE | re.DOTALL)
+    if edu_match:
+        data["Education"] = edu_match.group(2).strip()
 
-    education_match = re.search(r'(formation|education)[\:\- ]*(.*?)(experience|skills|competences|languages)', text, re.IGNORECASE|re.DOTALL)
-    if education_match:
-        entities["Education"] = education_match.group(2).strip()
+    # Experience
+    exp_match = re.search(r"(expérience|experience)\s*[:\-]*\s*(.+?)(formation|education|skills|competences|languages)", text, re.IGNORECASE | re.DOTALL)
+    if exp_match:
+        data["Experience"] = exp_match.group(2).strip()
 
-    experience_match = re.search(r'(experience|expérience)[\:\- ]*(.*?)(formation|education|skills|competences|languages)', text, re.IGNORECASE|re.DOTALL)
-    if experience_match:
-        entities["Experience"] = experience_match.group(2).strip()
+    # Driving License
+    license_match = re.search(r"permis\s+([A-Za-z])", text, re.IGNORECASE)
+    if license_match:
+        data["Driving License"] = f"Permis {license_match.group(1).upper()}"
 
-    language_keywords = ['français', 'anglais', 'espagnol', 'arabe']
-    lang = []
-    for k in language_keywords:
-        if k in text.lower():
-            lang.append(k.capitalize())
-    if lang:
-        entities["Languages"] = ", ".join(lang)
+    # Skills
+    skill_words = re.findall(r'\b\w[\w\-\+#/.]*\b', text)
+    matched_skills = set()
+    for word in skill_words:
+        match = get_close_matches(word, skills_list, n=1, cutoff=0.85)
+        if match:
+            matched_skills.add(match[0])
+    data["Skills"] = ", ".join(sorted(matched_skills))
 
-    return entities
+    # Languages
+    langs = []
+    if "français" in text.lower(): langs.append("Français")
+    if "anglais" in text.lower(): langs.append("Anglais")
+    if "espagnol" in text.lower(): langs.append("Espagnol")
+    if "arabe" in text.lower(): langs.append("Arabe")
+    data["Languages"] = ", ".join(langs)
 
-st.title("📄 Analyse automatique de CVs avec Python")
+    return data
 
-st.markdown("Déposez un ou plusieurs CVs pour analyser leur contenu automatiquement.")
-
-uploaded_files = st.file_uploader("📤 Déposer vos fichiers CV", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True)
+st.title("📄 Analyse Automatique de CVs")
+uploaded_files = st.file_uploader("Déposez vos CVs ici", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True)
 
 if uploaded_files:
-    all_entities = []
+    all_results = []
     for file in uploaded_files:
         with st.spinner(f"Traitement de {file.name}..."):
             text = extract_text_from_pdf(file)
-            entities = extract_entities(text)
-            all_entities.append(entities)
+            data = extract_data(text)
+            all_results.append(data)
 
-    df = pd.DataFrame(all_entities)
-    st.success("✅ Extraction terminée !")
+    df = pd.DataFrame(all_results)
+    st.success("✅ Analyse terminée !")
     st.dataframe(df)
 
     excel_buffer = BytesIO()
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
         df.to_excel(writer, index=False)
-    st.download_button("⬇️ Télécharger Excel", data=excel_buffer.getvalue(), file_name="resultats_cv.xlsx")
+    st.download_button("⬇️ Télécharger les résultats", data=excel_buffer.getvalue(), file_name="resultats_cv.xlsx")
