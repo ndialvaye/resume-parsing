@@ -1,7 +1,6 @@
 streamlit
 pandas
 numpy
-spacy
 pdf2image
 pytesseract
 pymupdf
