@@ -1,7 +1,6 @@
-
 import streamlit as st
 import pandas as pd
-import fitz
+import fitz  # PyMuPDF
 import pytesseract
 from pdf2image import convert_from_bytes
 import re
@@ -30,81 +29,45 @@ def extract_text_from_pdf(file):
 
 def extract_data(text):
     data = {
-        "Name": "",
-        "Email": "",
-        "Phone": "",
-        "Address": "",
-        "Profile": "",
-        "Skills": "",
-        "Experience": "",
-        "Education": "",
-        "Languages": "",
-        "Driving License": ""
+        "Name": "", "Email": "", "Phone": "", "Address": "", "Profile": "",
+        "Skills": "", "Experience": "", "Education": "", "Languages": "", "Driving License": ""
     }
-
-    # Email
     emails = re.findall(r'[\w\.-]+@[\w\.-]+\.\w+', text)
-    if emails:
-        data["Email"] = emails[0].lower()
-
-    # Phone
+    if emails: data["Email"] = emails[0].lower()
     phones = re.findall(r'(\+?\d[\d\s\-\(\)]{7,})', text)
-    if phones:
-        data["Phone"] = re.sub(r"[^\d+]", "", phones[0])
-
-    # Name
+    if phones: data["Phone"] = re.sub(r"[^\d+]", "", phones[0])
     lines = text.split("\n")
     if lines:
         first_line = lines[0].strip()
         if len(first_line.split()) <= 4:
             data["Name"] = first_line.title()
-
-    # Address
     address_match = re.search(r"(adresse|address)\s*[:\-]*\s*(.+)", text, re.IGNORECASE)
     if address_match:
         data["Address"] = address_match.group(2).split("\n")[0].strip().title()
-
-    # Profile
     profile_match = re.search(r"(profil|objectif)\s*[:\-]*\s*(.+?)(\n|experience|formation|education|skills)", text, re.IGNORECASE | re.DOTALL)
-    if profile_match:
-        data["Profile"] = profile_match.group(2).strip()
-
-    # Education
+    if profile_match: data["Profile"] = profile_match.group(2).strip()
     edu_match = re.search(r"(formation|education)\s*[:\-]*\s*(.+?)(experience|skills|competences|languages)", text, re.IGNORECASE | re.DOTALL)
-    if edu_match:
-        data["Education"] = edu_match.group(2).strip()
-
-    # Experience
+    if edu_match: data["Education"] = edu_match.group(2).strip()
     exp_match = re.search(r"(expérience|experience)\s*[:\-]*\s*(.+?)(formation|education|skills|competences|languages)", text, re.IGNORECASE | re.DOTALL)
-    if exp_match:
-        data["Experience"] = exp_match.group(2).strip()
-
-    # Driving License
+    if exp_match: data["Experience"] = exp_match.group(2).strip()
     license_match = re.search(r"permis\s+([A-Za-z])", text, re.IGNORECASE)
-    if license_match:
-        data["Driving License"] = f"Permis {license_match.group(1).upper()}"
-
-    # Skills
+    if license_match: data["Driving License"] = f"Permis {license_match.group(1).upper()}"
     skill_words = re.findall(r'\b\w[\w\-\+#/.]*\b', text)
     matched_skills = set()
     for word in skill_words:
         match = get_close_matches(word, skills_list, n=1, cutoff=0.85)
-        if match:
-            matched_skills.add(match[0])
+        if match: matched_skills.add(match[0])
     data["Skills"] = ", ".join(sorted(matched_skills))
-
-    # Languages
     langs = []
     if "français" in text.lower(): langs.append("Français")
     if "anglais" in text.lower(): langs.append("Anglais")
     if "espagnol" in text.lower(): langs.append("Espagnol")
     if "arabe" in text.lower(): langs.append("Arabe")
     data["Languages"] = ", ".join(langs)
-
     return data
 
 st.title("📄 Analyse Automatique de CVs")
-uploaded_files = st.file_uploader("Déposez vos CVs ici", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True)
+uploaded_files = st.file_uploader("Déposez vos CVs ici", type=["pdf"], accept_multiple_files=True)
 
 if uploaded_files:
     all_results = []
@@ -113,12 +76,10 @@ if uploaded_files:
             text = extract_text_from_pdf(file)
             data = extract_data(text)
             all_results.append(data)
-
     df = pd.DataFrame(all_results)
     st.success("✅ Analyse terminée !")
     st.dataframe(df)
-
     excel_buffer = BytesIO()
     with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
         df.to_excel(writer, index=False)
-    st.download_button("⬇️ Télécharger les résultats", data=excel_buffer.getvalue(), file_name="resultats_cv.xlsx")
+    st.download_button("⬇️ Télécharger le fichier Excel", data=excel_buffer.getvalue(), file_name="résultats_cv.xlsx")
