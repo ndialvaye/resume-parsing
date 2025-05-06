@@ -1,6 +1,3 @@
-streamlit
 pandas
-pymupdf
-pytesseract
-pdf2image
+nltk
 openpyxl
